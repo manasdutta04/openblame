@@ -1,20 +1,20 @@
-# DataGhost
+# OpenBlame
 
-DataGhost is a local-first CLI investigation agent for data pipelines running on OpenMetadata. Point it to a table, and it will trace lineage, inspect recent quality failures, parse schema-change events, and collect owner metadata to build a concrete incident narrative.
+OpenBlame is a local-first CLI investigation agent for data pipelines running on OpenMetadata. Point it to a table, and it will trace lineage, inspect recent quality failures, parse schema-change events, and collect owner metadata to build a concrete incident narrative.
 
-The reasoning layer runs on a local Ollama model, so investigations stay inside your environment. This makes DataGhost useful for secure internal datasets and fast incident response workflows where you want reproducible, metadata-driven triage without external LLM APIs.
+The reasoning layer runs on a local Ollama model, so investigations stay inside your environment. This makes OpenBlame useful for secure internal datasets and fast incident response workflows where you want reproducible, metadata-driven triage without external LLM APIs.
 
 ## Architecture
 
 ```text
                          +--------------------+
-                         |    dataghost CLI   |
+                         |    openblame CLI   |
                          | Typer + Rich UX    |
                          +---------+----------+
                                    |
                                    v
                          +--------------------+
-                         |  DataGhost Agent   |
+                         |  OpenBlame Agent   |
                          |  ReAct-style loop  |
                          +----+----------+----+
                               |          |
@@ -41,10 +41,8 @@ The reasoning layer runs on a local Ollama model, so investigations stay inside 
 
 ## Installation
 
-PyPI note: the package name `dataghost` is already occupied on PyPI as of April 19, 2026, so publishing this exact project under `pip install dataghost` requires control or transfer of that existing PyPI project.
-
 ```bash
-pip install dataghost
+pip install openblame
 ```
 
 For local development:
@@ -59,7 +57,7 @@ pip install -e ".[dev]"
 2. Run:
 
 ```bash
-dataghost investigate default.public.orders --depth 3 --days 7
+openblame investigate default.public.orders --depth 3 --days 7
 ```
 
 Example output:
@@ -77,7 +75,7 @@ Suggested Fix: Restore compatible type, backfill, rerun failed checks.
 ### Investigate
 
 ```bash
-dataghost investigate <table_fqn> --depth 3 --days 7 --output report.md --model llama3
+openblame investigate <table_fqn> --depth 3 --days 7 --output report.md --model llama3
 ```
 
 Runs the full investigation loop, prints a Rich report, optionally writes markdown, and can suggest a GitHub issue payload.
@@ -85,7 +83,7 @@ Runs the full investigation loop, prints a Rich report, optionally writes markdo
 ### Schema Diff
 
 ```bash
-dataghost diff default.public.orders --days 7
+openblame diff default.public.orders --days 7
 ```
 
 Prints table schema changes over the lookback window.
@@ -93,7 +91,7 @@ Prints table schema changes over the lookback window.
 ### Lineage
 
 ```bash
-dataghost lineage default.public.orders --depth 3 --direction both
+openblame lineage default.public.orders --depth 3 --direction both
 ```
 
 Renders upstream and downstream lineage as a Rich tree.
@@ -101,14 +99,14 @@ Renders upstream and downstream lineage as a Rich tree.
 ### MCP Server
 
 ```bash
-dataghost mcp-server
+openblame mcp-server
 ```
 
-Starts DataGhost as an MCP stdio server exposing investigation tools.
+Starts OpenBlame as an MCP stdio server exposing investigation tools.
 
 ## Configuration
 
-DataGhost reads `.env` and environment variables:
+OpenBlame reads `.env` and environment variables:
 
 ```env
 OPENMETADATA_HOST=http://localhost:8585
@@ -128,7 +126,7 @@ The server exposes:
 Use stdio transport with:
 
 ```bash
-dataghost mcp-server
+openblame mcp-server
 ```
 
 ## How It Works
@@ -139,7 +137,7 @@ dataghost mcp-server
 4. Send gathered evidence back to Ollama for incident reasoning.
 5. Render and optionally persist a markdown report.
 
-Tool failures are non-fatal. DataGhost continues with partial data whenever possible.
+Tool failures are non-fatal. OpenBlame continues with partial data whenever possible.
 
 ## Publishing
 

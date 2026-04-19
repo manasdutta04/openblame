@@ -3,13 +3,13 @@ requires = ["hatchling>=1.25.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "dataghost"
+name = "openblame"
 version = "0.1.0"
-description = "Local-first AI investigator for OpenMetadata data pipelines."
+description = "Local-first AI investigation CLI for OpenMetadata data pipelines."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "DataGhost Contributors" }]
+authors = [{ name = "OpenBlame Contributors" }]
 keywords = ["openmetadata", "data-lineage", "ollama", "mcp", "ai-agent", "data-observability"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -45,12 +45,15 @@ dev = [
 ]
 
 [project.scripts]
-dataghost = "dataghost.cli:app"
+openblame = "dataghost.cli:app"
 
 [project.urls]
 Homepage = "https://github.com/manasdutta04/dataghost"
 Repository = "https://github.com/manasdutta04/dataghost"
 Issues = "https://github.com/manasdutta04/dataghost/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dataghost"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

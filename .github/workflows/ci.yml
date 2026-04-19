@@ -24,7 +24,7 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Verify CLI entry point
-        run: dataghost --help
+        run: openblame --help
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short

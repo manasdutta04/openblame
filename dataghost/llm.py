@@ -79,7 +79,7 @@ No explanation, no markdown, just the JSON array."""
         return ["Investigate metadata anomalies"]
 
     def reason(self, gathered_data: dict[str, Any]) -> str:
-        system = """You are DataGhost, a data reliability expert. Analyze the provided metadata and produce a concise incident report with these sections:
+        system = """You are OpenBlame, a data reliability expert. Analyze the provided metadata and produce a concise incident report with these sections:
 
 **Root Cause** - Most likely cause of data issues (be specific, use actual names)
 **Impact** - Which tables, dashboards, or consumers are affected and how many

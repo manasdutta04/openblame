@@ -13,7 +13,7 @@ from dataghost.tools import lineage as lineage_tool
 from dataghost.tools import schema_diff as diff_tool
 
 
-app = typer.Typer(help="DataGhost - AI-powered data pipeline investigator")
+app = typer.Typer(help="OpenBlame - AI-powered data pipeline investigator")
 
 
 @app.command()
@@ -64,7 +64,7 @@ def investigate(
     if result.affected_entities:
         answer = typer.confirm("\nOpen GitHub issue?", default=False)
         if answer:
-            title = f"[DataGhost] Incident: {table_fqn} - {result.severity}"
+            title = f"[OpenBlame] Incident: {table_fqn} - {result.severity}"
             body = result.report_markdown.replace('"', '\\"').replace("\n", "\\n")
             reporter.console.print(
                 "\n[dim]curl -X POST "

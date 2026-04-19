@@ -31,7 +31,7 @@ LOGO = """\
   ██║  ██║██╔══██║   ██║   ██╔══██║██║   ██║██╔══██║██║   ██║╚════██║   ██║
   ██████╔╝██║  ██║   ██║   ██║  ██║╚██████╔╝██║  ██║╚██████╔╝███████║   ██║
   ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝
-[/bold cyan][dim]                   AI-powered data pipeline investigator[/dim]"""
+[/bold cyan][dim]                   OpenBlame - AI-powered data pipeline investigator[/dim]"""
 
 
 def print_header(fqn: str) -> None:
@@ -167,7 +167,7 @@ def print_schema_diff_table(diff: dict[str, Any]) -> None:
 
 
 def save_report(result: AgentResult, path: str) -> None:
-    content = f"# DataGhost Incident Report\n\n**Table:** `{result.fqn}`\n**Severity:** {result.severity}\n\n"
+    content = f"# OpenBlame Incident Report\n\n**Table:** `{result.fqn}`\n**Severity:** {result.severity}\n\n"
     content += result.report_markdown
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(content)

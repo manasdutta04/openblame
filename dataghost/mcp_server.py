@@ -15,7 +15,7 @@ from dataghost.tools import lineage as lineage_tool
 from dataghost.tools import schema_diff as diff_tool
 
 
-server = Server("dataghost")
+server = Server("openblame")
 
 
 @server.list_tools()

@@ -1,1 +1,1 @@
-"""Test package for DataGhost."""
+"""Test package for OpenBlame."""
