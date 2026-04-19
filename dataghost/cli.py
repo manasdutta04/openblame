@@ -55,6 +55,10 @@ def investigate(
             )
         )
 
+    reporter.print_planning(result.plan_steps)
+    for anomaly in result.anomalies[:3]:
+        reporter.print_anomaly(anomaly)
+    reporter.print_briefing(result)
     reporter.print_report(result)
 
     if output:

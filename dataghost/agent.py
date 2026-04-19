@@ -16,6 +16,10 @@ class AgentResult:
     quality: dict[str, Any] = field(default_factory=dict)
     schema_diff: dict[str, Any] = field(default_factory=dict)
     owners: dict[str, Any] = field(default_factory=dict)
+    plan_steps: list[str] = field(default_factory=list)
+    anomalies: list[str] = field(default_factory=list)
+    evidence: list[str] = field(default_factory=list)
+    governance_risks: list[str] = field(default_factory=list)
     report_markdown: str = ""
     severity: str = "UNKNOWN"
     root_cause: str = ""
@@ -67,6 +71,7 @@ class DataGhostAgent:
             steps = self.llm.plan(fqn, context)
         except Exception:
             steps = ["Investigate metadata anomalies", "Check lineage", "Review quality tests"]
+        result.plan_steps = steps
         emit(f"Plan: {len(steps)} steps")
 
         emit("Fetching lineage and quality data...")
@@ -121,6 +126,10 @@ class DataGhostAgent:
         if isinstance(downstream, list):
             result.affected_entities = [str(node.get("fqn", "")) for node in downstream if node.get("fqn")]
 
+        result.governance_risks = _governance_risks(result.owners)
+        result.anomalies = _build_anomalies(result)
+        result.evidence = _build_evidence(result)
+
         lines = report.splitlines()
         for index, line in enumerate(lines):
             if "root cause" in line.lower():
@@ -148,3 +157,88 @@ def _safe_dict(
     else:
         base["error"] = fallback_error
     return base
+
+
+def _governance_risks(owner_data: dict[str, Any]) -> list[str]:
+    risks: list[str] = []
+    if not owner_data.get("owners"):
+        risks.append("No owner is assigned, so incident routing will depend on tribal knowledge.")
+    if not owner_data.get("description"):
+        risks.append("The table description is missing, which makes impact analysis and handoffs slower.")
+    if not owner_data.get("tier"):
+        risks.append("No Tier tag is set, so business criticality is not explicitly encoded.")
+    if not owner_data.get("domain"):
+        risks.append("No domain is assigned, so governance boundaries are harder to enforce.")
+    if not owner_data.get("tags"):
+        risks.append("No metadata tags are present, which weakens classification and policy automation.")
+    return risks
+
+
+def _build_anomalies(result: AgentResult) -> list[str]:
+    anomalies: list[str] = []
+    for change in (result.schema_diff.get("changes") or [])[:3]:
+        column = change.get("column") or "unknown column"
+        when = change.get("changed_at") or "recently"
+        old_value = change.get("old_value") or "unknown"
+        new_value = change.get("new_value") or "unknown"
+        change_type = change.get("change_type") or "changed"
+        if change_type == "type_changed":
+            anomalies.append(f"Schema drift: `{column}` changed from `{old_value}` to `{new_value}` at {when}.")
+        elif change_type == "added":
+            anomalies.append(f"Schema drift: `{column}` was added at {when}.")
+        elif change_type == "removed":
+            anomalies.append(f"Schema drift: `{column}` was removed at {when}.")
+
+    for failure in (result.quality.get("failures") or [])[:3]:
+        test_name = failure.get("test_name") or "unnamed test"
+        column = failure.get("column") or "table-level"
+        actual = failure.get("actual") or "no result message"
+        failed_at = failure.get("failed_at") or "recently"
+        anomalies.append(
+            f"Quality regression: `{test_name}` failed on `{column}` at {failed_at} with result: {actual}."
+        )
+
+    if result.governance_risks:
+        anomalies.append(f"Governance gap: {result.governance_risks[0]}")
+
+    return anomalies
+
+
+def _build_evidence(result: AgentResult) -> list[str]:
+    evidence: list[str] = []
+
+    owners = result.owners.get("owners") or []
+    if owners:
+        lead = owners[0]
+        owner_name = lead.get("name") or "unassigned"
+        owner_email = lead.get("email") or "no email"
+        evidence.append(f"Primary owner: {owner_name} ({owner_email}).")
+
+    tags = result.owners.get("tags") or []
+    if tags:
+        evidence.append(f"Tags on asset: {', '.join(tags[:4])}.")
+
+    domain = result.owners.get("domain")
+    if domain:
+        evidence.append(f"Domain: {domain}.")
+
+    downstream = result.affected_entities
+    if downstream:
+        preview = ", ".join(downstream[:3])
+        suffix = " ..." if len(downstream) > 3 else ""
+        evidence.append(
+            f"Downstream blast radius: {len(downstream)} entities depend on this table ({preview}{suffix})."
+        )
+
+    failures = result.quality.get("failed", 0)
+    total_tests = result.quality.get("total_tests", 0)
+    if total_tests:
+        evidence.append(f"Quality posture: {failures} of {total_tests} recent tests are failing.")
+
+    if result.schema_diff.get("changes"):
+        evidence.append(
+            f"Recent schema volatility: {len(result.schema_diff.get('changes', []))} column change events in lookback window."
+        )
+
+    evidence.extend(result.governance_risks[:2])
+    return evidence

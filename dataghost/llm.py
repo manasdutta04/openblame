@@ -87,13 +87,16 @@ No explanation, no markdown, just the JSON array."""
 **Owner** - Who owns the affected asset (name and email if available)
 **Suggested Fix** - Concrete numbered steps to resolve
 **Severity** - ONE of: LOW / MEDIUM / HIGH / CRITICAL
+**Governance Gaps** - Missing owner, tier, tags, domain, or description issues that made this incident harder to catch or route
 
 Rules:
 - Use actual values from the data, never say "N/A" or "unknown" if data is present
 - If no issues found, say clearly: "No anomalies detected."
 - Write in plain English
 - Format as markdown
-- Start with the severity line: `## Severity: HIGH`"""
+- Start with the severity line: `## Severity: HIGH`
+- Tie the root cause to upstream lineage and downstream impact when possible
+- If governance metadata is weak, mention how that increased incident risk or slowed remediation"""
 
         content = (
             "Investigate this table and its metadata:\n\n```json\n"
