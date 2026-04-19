@@ -1,114 +1,100 @@
 from __future__ import annotations
 
 import json
-import re
 from typing import Any
 
-from ollama import Client
-from rich.console import Console
+import ollama
 from rich.live import Live
 from rich.text import Text
 
 
-SYSTEM_PROMPT = """You are DataGhost, a data reliability expert. You have been given full metadata
-about a data pipeline entity. Analyze it and produce a concise incident report with:
-
-1. **Root Cause** — What is the most likely cause of data issues?
-2. **Impact** — Which tables, dashboards, or consumers are affected?
-3. **Evidence** — Specific facts from the metadata (schema changes, failed tests, lineage)
-4. **Owner** — Who owns the affected asset?
-5. **Suggested Fix** — Concrete steps to resolve the issue.
-6. **Severity** — LOW / MEDIUM / HIGH / CRITICAL based on downstream impact count.
-
-Be specific. Use the actual column names, table names, dates, and owners from the data.
-If no issues are found, say so clearly. Write in plain English, no jargon.
-Format as markdown."""
-
-
-class OllamaConnectionError(RuntimeError):
-    """Raised when Ollama is unavailable."""
-
-
 class OllamaClient:
-    def __init__(self, model: str, host: str, console: Console | None = None) -> None:
+    def __init__(self, model: str, host: str):
         self.model = model
-        self.host = host.rstrip("/")
-        self.client = Client(host=self.host)
-        self.console = console or Console()
+        self.client = ollama.Client(host=host)
 
     def chat(
         self,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         system: str = "",
-        *,
         stream: bool = False,
     ) -> str:
-        payload = list(messages)
+        full_messages: list[dict[str, Any]] = []
         if system:
-            payload = [{"role": "system", "content": system}, *payload]
-        try:
-            if not stream:
-                response = self.client.chat(
-                    model=self.model,
-                    messages=payload,
-                    stream=False,
-                )
-                return str((response.get("message") or {}).get("content") or "").strip()
+            full_messages.append({"role": "system", "content": system})
+        full_messages.extend(messages)
 
-            buffer = ""
-            stream_response = self.client.chat(
+        if stream:
+            collected = ""
+            response = self.client.chat(
                 model=self.model,
-                messages=payload,
+                messages=full_messages,
                 stream=True,
             )
-            with Live(Text(""), console=self.console, refresh_per_second=20) as live:
-                for chunk in stream_response:
+            with Live(Text(""), refresh_per_second=20) as live:
+                for chunk in response:
                     token = str((chunk.get("message") or {}).get("content") or "")
-                    if not token:
-                        continue
-                    buffer += token
-                    live.update(Text(buffer))
-            return buffer.strip()
-        except Exception as error:  # pragma: no cover - depends on local ollama runtime
-            raise OllamaConnectionError(
-                f"Could not reach Ollama at {self.host}. Is `ollama serve` running?"
-            ) from error
+                    if token:
+                        collected += token
+                        live.update(Text(collected))
+            return collected
 
-    def plan(self, context: str) -> list[str]:
-        prompt = (
-            "You are a data reliability engineer. Given this metadata context, "
-            "list the exact tool calls needed to investigate a potential incident. "
-            "Respond ONLY with a JSON array of step strings.\n\n"
-            f"Context:\n{context}"
-        )
-        raw = self.chat([{"role": "user", "content": prompt}], stream=False)
-        return _parse_step_array(raw)
+        response = self.client.chat(model=self.model, messages=full_messages)
+        return str((response.get("message") or {}).get("content") or "")
+
+    def plan(self, table_fqn: str, context_summary: str) -> list[str]:
+        prompt = f"""You are a data reliability engineer investigating a potential incident.
+Table: {table_fqn}
+Context: {context_summary}
+
+List the investigation steps needed. Respond ONLY with a valid JSON array of short strings.
+Example: ["Check upstream lineage for schema changes", "Review quality test failures in last 7 days"]
+No explanation, no markdown, just the JSON array."""
+
+        result = self.chat([{"role": "user", "content": prompt}])
+        cleaned = result.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.strip("`")
+            if cleaned.lower().startswith("json"):
+                cleaned = cleaned[4:].strip()
+        try:
+            steps = json.loads(cleaned)
+            if isinstance(steps, list):
+                return [str(step) for step in steps]
+        except json.JSONDecodeError:
+            return [
+                "Investigate metadata anomalies",
+                "Check lineage",
+                "Review quality tests",
+            ]
+        return ["Investigate metadata anomalies"]
 
     def reason(self, gathered_data: dict[str, Any]) -> str:
-        payload = json.dumps(gathered_data, indent=2, default=str)
-        return self.chat(
-            [{"role": "user", "content": payload}],
-            system=SYSTEM_PROMPT,
-            stream=True,
+        system = """You are DataGhost, a data reliability expert. Analyze the provided metadata and produce a concise incident report with these sections:
+
+**Root Cause** - Most likely cause of data issues (be specific, use actual names)
+**Impact** - Which tables, dashboards, or consumers are affected and how many
+**Evidence** - Specific facts: column names, type changes, test failure counts, dates
+**Owner** - Who owns the affected asset (name and email if available)
+**Suggested Fix** - Concrete numbered steps to resolve
+**Severity** - ONE of: LOW / MEDIUM / HIGH / CRITICAL
+
+Rules:
+- Use actual values from the data, never say "N/A" or "unknown" if data is present
+- If no issues found, say clearly: "No anomalies detected."
+- Write in plain English
+- Format as markdown
+- Start with the severity line: `## Severity: HIGH`"""
+
+        content = (
+            "Investigate this table and its metadata:\n\n```json\n"
+            f"{json.dumps(gathered_data, indent=2, default=str)}\n```"
         )
+        return self.chat([{"role": "user", "content": content}], system=system)
 
-
-def _parse_step_array(raw: str) -> list[str]:
-    try:
-        loaded = json.loads(raw)
-        if isinstance(loaded, list):
-            return [str(item) for item in loaded]
-    except json.JSONDecodeError:
-        pass
-
-    match = re.search(r"\[[\s\S]*\]", raw)
-    if match:
+    def test_connection(self) -> bool:
         try:
-            loaded = json.loads(match.group(0))
-            if isinstance(loaded, list):
-                return [str(item) for item in loaded]
-        except json.JSONDecodeError:
-            pass
-
-    fallback = [line.strip("-* ").strip() for line in raw.splitlines() if line.strip()]
-    return fallback[:5] if fallback else ["Fetch lineage", "Fetch quality", "Fetch schema diff"]
+            self.client.list()
+            return True
+        except Exception:
+            return False

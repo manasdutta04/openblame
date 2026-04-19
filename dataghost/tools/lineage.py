@@ -5,87 +5,95 @@ from urllib.parse import quote
 
 import httpx
 
-from dataghost.config import DataGhostConfig
-from dataghost.tools.common import OpenMetadataError, om_get
+
+def _edge_entity_id(value: Any) -> str:
+    if isinstance(value, dict):
+        return str(value.get("id") or "")
+    return str(value or "")
 
 
-def _owner_name(entity: dict[str, Any]) -> str:
-    owners = entity.get("owners") or []
-    if owners and isinstance(owners, list):
-        owner = owners[0]
-        return str(owner.get("name") or owner.get("displayName") or "unknown")
-    return "unknown"
+def _owner_name(node: dict[str, Any]) -> str | None:
+    owner = node.get("owner")
+    if isinstance(owner, dict):
+        return str(owner.get("name") or owner.get("displayName") or "") or None
+    owners = node.get("owners") or []
+    if isinstance(owners, list) and owners:
+        first = owners[0]
+        if isinstance(first, dict):
+            return str(first.get("name") or first.get("displayName") or "") or None
+    return None
 
 
-def _node_entry(node: dict[str, Any]) -> dict[str, str]:
+def _node_payload(node: dict[str, Any]) -> dict[str, Any]:
     return {
         "fqn": str(node.get("fullyQualifiedName") or node.get("name") or ""),
+        "display_name": str(node.get("displayName") or node.get("name") or ""),
+        "type": str(node.get("type") or "table"),
         "owner": _owner_name(node),
-        "last_modified": str(node.get("updatedAt") or ""),
-        "quality_status": str(node.get("qualityStatus") or "unknown"),
     }
-
-
-def _parse_lineage_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    entity = payload.get("entity") or {}
-    nodes = payload.get("nodes") or []
-    id_map = {str(node.get("id")): node for node in nodes if node.get("id")}
-    root_id = str(entity.get("id") or "")
-
-    upstream: list[dict[str, str]] = []
-    downstream: list[dict[str, str]] = []
-
-    for edge in payload.get("upstreamEdges") or []:
-        from_entity = edge.get("fromEntity") or {}
-        to_entity = edge.get("toEntity") or {}
-        if str(to_entity.get("id")) != root_id:
-            continue
-        node = id_map.get(str(from_entity.get("id"))) or from_entity
-        upstream.append(_node_entry(node))
-
-    for edge in payload.get("downstreamEdges") or []:
-        from_entity = edge.get("fromEntity") or {}
-        to_entity = edge.get("toEntity") or {}
-        if str(from_entity.get("id")) != root_id:
-            continue
-        node = id_map.get(str(to_entity.get("id"))) or to_entity
-        downstream.append(_node_entry(node))
-
-    entity_item = {
-        "fqn": str(entity.get("fullyQualifiedName") or entity.get("name") or ""),
-        "owner": _owner_name(entity),
-        "last_modified": str(entity.get("updatedAt") or ""),
-        "quality_status": str(entity.get("qualityStatus") or "unknown"),
-    }
-    return {"entity": entity_item, "upstream": upstream, "downstream": downstream}
 
 
 async def get_lineage(
     fqn: str,
     depth: int,
     direction: str,
-    config: DataGhostConfig,
+    host: str,
+    token: str,
 ) -> dict[str, Any]:
-    """
-    Call OpenMetadata lineage API and return normalized upstream/downstream structure.
-    """
+    encoded = quote(fqn, safe="")
+    url = f"{host.rstrip('/')}/api/v1/lineage/table/name/{encoded}"
+    params = {
+        "upstreamDepth": depth if direction in {"upstream", "both"} else 0,
+        "downstreamDepth": depth if direction in {"downstream", "both"} else 0,
+    }
+    headers = {"Authorization": f"Bearer {token}"}
 
-    default = {"entity": {"fqn": fqn}, "upstream": [], "downstream": []}
     try:
-        encoded = quote(fqn, safe="")
-        upstream_depth = depth if direction in {"upstream", "both"} else 0
-        downstream_depth = depth if direction in {"downstream", "both"} else 0
-        params = {"upstreamDepth": upstream_depth, "downstreamDepth": downstream_depth}
-        async with httpx.AsyncClient(timeout=config.http_timeout_seconds) as client:
-            payload = await om_get(
-                client,
-                config,
-                f"/api/v1/lineage/table/{encoded}",
-                params=params,
-                allow_404=True,
-            )
-        if not payload:
-            return default
-        return _parse_lineage_payload(payload)
-    except OpenMetadataError as error:
-        return {**default, "_error": str(error)}
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(url, params=params, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        entity = data.get("entity") or {}
+        entity_id = str(entity.get("id") or "")
+        nodes = data.get("nodes") or []
+        node_by_id = {str(node.get("id")): node for node in nodes if node.get("id")}
+
+        upstream_ids: list[str] = []
+        for edge in data.get("upstreamEdges") or []:
+            if _edge_entity_id(edge.get("toEntity")) == entity_id:
+                from_id = _edge_entity_id(edge.get("fromEntity"))
+                if from_id:
+                    upstream_ids.append(from_id)
+
+        downstream_ids: list[str] = []
+        for edge in data.get("downstreamEdges") or []:
+            if _edge_entity_id(edge.get("fromEntity")) == entity_id:
+                to_id = _edge_entity_id(edge.get("toEntity"))
+                if to_id:
+                    downstream_ids.append(to_id)
+
+        upstream = [
+            _node_payload(node_by_id[node_id])
+            for node_id in upstream_ids
+            if node_id in node_by_id
+        ]
+        downstream = [
+            _node_payload(node_by_id[node_id])
+            for node_id in downstream_ids
+            if node_id in node_by_id
+        ]
+
+        if direction == "upstream":
+            downstream = []
+        elif direction == "downstream":
+            upstream = []
+
+        entity_fqn = str(entity.get("fullyQualifiedName") or entity.get("name") or fqn)
+        return {
+            "entity": entity_fqn,
+            "upstream": upstream,
+            "downstream": downstream,
+        }
+    except Exception as error:
+        return {"entity": fqn, "upstream": [], "downstream": [], "error": str(error)}

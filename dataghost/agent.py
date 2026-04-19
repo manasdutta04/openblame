@@ -1,176 +1,150 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import re
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from dataghost.config import DataGhostConfig
+from dataghost.config import Settings
 from dataghost.llm import OllamaClient
-from dataghost.tools.lineage import get_lineage
-from dataghost.tools.owners import get_owners_and_tags
-from dataghost.tools.quality import get_quality_tests
-from dataghost.tools.schema_diff import get_schema_diff
+from dataghost.tools import lineage, owners, quality, schema_diff
 
 
-ProgressCallback = Callable[[str], None]
-
-
-@dataclass(slots=True)
+@dataclass
 class AgentResult:
     fqn: str
-    lineage: dict[str, Any]
-    quality: dict[str, Any]
-    schema_diff: dict[str, Any]
-    owners: dict[str, Any]
-    report_markdown: str
-    severity: str
-    root_cause: str
-    affected_entities: list[str]
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+    lineage: dict[str, Any] = field(default_factory=dict)
+    quality: dict[str, Any] = field(default_factory=dict)
+    schema_diff: dict[str, Any] = field(default_factory=dict)
+    owners: dict[str, Any] = field(default_factory=dict)
+    report_markdown: str = ""
+    severity: str = "UNKNOWN"
+    root_cause: str = ""
+    affected_entities: list[str] = field(default_factory=list)
 
 
 class DataGhostAgent:
-    def __init__(
-        self,
-        config: DataGhostConfig,
-        llm: OllamaClient,
-        progress_callback: ProgressCallback | None = None,
-    ) -> None:
+    def __init__(self, config: Settings, llm: OllamaClient):
         self.config = config
         self.llm = llm
-        self.progress_callback = progress_callback
 
-    def _emit(self, message: str) -> None:
-        if self.progress_callback:
-            self.progress_callback(message)
+    async def investigate(
+        self,
+        fqn: str,
+        depth: int = 3,
+        days: int = 7,
+        on_status: Callable[[str], None] | None = None,
+    ) -> AgentResult:
+        result = AgentResult(fqn=fqn)
 
-    async def investigate(self, fqn: str, depth: int, days: int) -> AgentResult:
-        self._emit("Planning: collecting baseline metadata")
-        owners_task = asyncio.create_task(get_owners_and_tags(fqn, self.config))
-        baseline_schema_task = asyncio.create_task(get_schema_diff(fqn, days, self.config))
-        owners, baseline_schema = await asyncio.gather(
-            owners_task,
-            baseline_schema_task,
+        def emit(message: str) -> None:
+            if on_status:
+                on_status(message)
+
+        emit("Fetching baseline metadata...")
+        owner_data, diff_data = await asyncio.gather(
+            owners.get_owners_and_tags(
+                fqn,
+                self.config.openmetadata_host,
+                self.config.openmetadata_jwt_token,
+            ),
+            schema_diff.get_schema_diff(
+                fqn,
+                days,
+                self.config.openmetadata_host,
+                self.config.openmetadata_jwt_token,
+            ),
             return_exceptions=True,
         )
+        result.owners = _safe_dict(owner_data, "owners fetch failed")
+        result.schema_diff = _safe_dict(diff_data, "schema diff fetch failed")
 
-        owners_data = owners if isinstance(owners, dict) else _owners_default(str(owners))
-        baseline_data = (
-            baseline_schema
-            if isinstance(baseline_schema, dict)
-            else _schema_default(str(baseline_schema))
+        emit("Planning investigation...")
+        context = (
+            f"Table: {fqn}. Owners: {result.owners.get('owners')}. "
+            f"Schema changes: {len(result.schema_diff.get('changes', []))}."
         )
-
-        planning_context = json.dumps(
-            {
-                "fqn": fqn,
-                "owners": owners_data,
-                "current_columns": baseline_data.get("current_columns", []),
-            },
-            default=str,
-        )
-        self._emit("Planning: asking LLM for tool steps")
         try:
-            steps = self.llm.plan(planning_context)
-        except Exception as error:
-            steps = [f"LLM planning unavailable: {error}"]
+            steps = self.llm.plan(fqn, context)
+        except Exception:
+            steps = ["Investigate metadata anomalies", "Check lineage", "Review quality tests"]
+        emit(f"Plan: {len(steps)} steps")
 
-        self._emit("Fetching: running lineage, quality, and schema tools")
-        lineage_task = asyncio.create_task(get_lineage(fqn, depth, "both", self.config))
-        quality_task = asyncio.create_task(get_quality_tests(fqn, days, self.config))
-        schema_task = asyncio.create_task(get_schema_diff(fqn, days, self.config))
-        lineage, quality, schema_diff = await asyncio.gather(
-            lineage_task,
-            quality_task,
-            schema_task,
+        emit("Fetching lineage and quality data...")
+        lineage_data, quality_data = await asyncio.gather(
+            lineage.get_lineage(
+                fqn,
+                depth,
+                "both",
+                self.config.openmetadata_host,
+                self.config.openmetadata_jwt_token,
+            ),
+            quality.get_quality_tests(
+                fqn,
+                days,
+                self.config.openmetadata_host,
+                self.config.openmetadata_jwt_token,
+            ),
             return_exceptions=True,
         )
+        result.lineage = _safe_dict(lineage_data, "lineage fetch failed", {"entity": fqn})
+        result.quality = _safe_dict(
+            quality_data,
+            "quality fetch failed",
+            {"total_tests": 0, "passed": 0, "failed": 0, "failures": []},
+        )
 
-        lineage_data = lineage if isinstance(lineage, dict) else _lineage_default(fqn, str(lineage))
-        quality_data = quality if isinstance(quality, dict) else _quality_default(str(quality))
-        schema_data = schema_diff if isinstance(schema_diff, dict) else _schema_default(str(schema_diff))
-        if not schema_data.get("current_columns"):
-            schema_data["current_columns"] = baseline_data.get("current_columns", [])
-
-        gathered_data = {
-            "fqn": fqn,
-            "steps": steps,
-            "lineage": lineage_data,
-            "quality": quality_data,
-            "schema_diff": schema_data,
-            "owners": owners_data,
+        emit("Reasoning with Ollama...")
+        gathered = {
+            "table_fqn": fqn,
+            "owners": result.owners,
+            "lineage": result.lineage,
+            "quality": result.quality,
+            "schema_diff": result.schema_diff,
+            "plan_steps": steps,
         }
-
-        self._emit("Reasoning: generating incident report")
         try:
-            report_markdown = self.llm.reason(gathered_data)
+            report = self.llm.reason(gathered)
         except Exception as error:
-            report_markdown = (
-                "## Root Cause\n"
-                "Reasoning model unavailable.\n\n"
-                f"## Evidence\n- LLM error: {error}\n"
-            )
+            report = f"## Severity: UNKNOWN\n\n**Root Cause**\nLLM reasoning failed: {error}"
+        result.report_markdown = report
 
-        severity = _extract_field(report_markdown, "Severity") or "UNKNOWN"
-        root_cause = _extract_field(report_markdown, "Root Cause") or "Not identified."
-        affected_entities = _affected_entities(lineage_data)
+        for line in report.splitlines():
+            upper_line = line.upper()
+            for severity in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
+                if severity in upper_line:
+                    result.severity = severity
+                    break
+            if result.severity != "UNKNOWN":
+                break
 
-        self._emit("Done: investigation complete")
-        return AgentResult(
-            fqn=fqn,
-            lineage=lineage_data,
-            quality=quality_data,
-            schema_diff=schema_data,
-            owners=owners_data,
-            report_markdown=report_markdown,
-            severity=severity.upper(),
-            root_cause=root_cause,
-            affected_entities=affected_entities,
-        )
+        downstream = result.lineage.get("downstream", [])
+        if isinstance(downstream, list):
+            result.affected_entities = [str(node.get("fqn", "")) for node in downstream if node.get("fqn")]
 
+        lines = report.splitlines()
+        for index, line in enumerate(lines):
+            if "root cause" in line.lower():
+                for candidate in lines[index + 1 :]:
+                    cleaned = candidate.strip().lstrip("- ").lstrip("* ")
+                    if cleaned:
+                        result.root_cause = cleaned
+                        break
+                if result.root_cause:
+                    break
 
-def _extract_field(markdown: str, field: str) -> str | None:
-    pattern = rf"(?im)^\s*\d+\.\s*\*?\*?{re.escape(field)}\*?\*?\s*[—:-]\s*(.+)$"
-    match = re.search(pattern, markdown)
-    if match:
-        return match.group(1).strip().strip("*")
-    header_pattern = rf"(?ims)^#+\s*{re.escape(field)}\s*\n(.+?)(?:\n#+\s|\Z)"
-    header = re.search(header_pattern, markdown)
-    if header:
-        return header.group(1).strip().splitlines()[0]
-    return None
+        return result
 
 
-def _affected_entities(lineage: dict[str, Any]) -> list[str]:
-    values = [item.get("fqn") for item in lineage.get("upstream", []) + lineage.get("downstream", [])]
-    unique = sorted({str(item) for item in values if item})
-    return unique
-
-
-def _lineage_default(fqn: str, error: str) -> dict[str, Any]:
-    return {"entity": {"fqn": fqn}, "upstream": [], "downstream": [], "_error": error}
-
-
-def _quality_default(error: str) -> dict[str, Any]:
-    return {"total_tests": 0, "passed": 0, "failed": 0, "failures": [], "_error": error}
-
-
-def _schema_default(error: str) -> dict[str, Any]:
-    return {"current_columns": [], "changes": [], "_error": error}
-
-
-def _owners_default(error: str) -> dict[str, Any]:
-    return {
-        "owners": [],
-        "tags": [],
-        "description": "",
-        "tier": None,
-        "domain": None,
-        "last_updated_by": "",
-        "last_updated_at": "",
-        "_error": error,
-    }
+def _safe_dict(
+    value: dict[str, Any] | Exception,
+    fallback_error: str,
+    template: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    base = template.copy() if template else {}
+    if isinstance(value, Exception):
+        base["error"] = str(value)
+    else:
+        base["error"] = fallback_error
+    return base
