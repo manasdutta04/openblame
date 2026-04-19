@@ -37,9 +37,11 @@ The reasoning layer runs on a local Ollama model, so investigations stay inside 
 - OpenMetadata instance reachable from your machine
 - OpenMetadata JWT token with read access
 - Ollama installed locally and running (`ollama serve`)
-- An installed local model (for example: `ollama pull llama3`)
+- An installed local model such as `llama3`
 
 ## Installation
+
+PyPI note: the package name `dataghost` is already occupied on PyPI as of April 19, 2026, so publishing this exact project under `pip install dataghost` requires control or transfer of that existing PyPI project.
 
 ```bash
 pip install dataghost
@@ -60,33 +62,27 @@ pip install -e ".[dev]"
 dataghost investigate default.public.orders --depth 3 --days 7
 ```
 
-Example output (trimmed):
+Example output:
 
 ```text
 [CRITICAL] default.public.orders
 Root Cause: `order_total` type changed from DECIMAL to STRING without downstream migration.
-Impact: 6 downstream tables + BI dashboard refresh failures.
+Impact: 6 downstream tables plus BI dashboard refresh failures.
 Owner: Data Platform (data-platform@company.com)
 Suggested Fix: Restore compatible type, backfill, rerun failed checks.
 ```
 
 ## CLI Commands
 
-### 1) Investigate
+### Investigate
 
 ```bash
-dataghost investigate <table_fqn> \
-  --depth 3 \
-  --days 7 \
-  --output report.md \
-  --model llama3 \
-  --github-owner your-org \
-  --github-repo your-repo
+dataghost investigate <table_fqn> --depth 3 --days 7 --output report.md --model llama3
 ```
 
-Runs the full investigation loop, prints a Rich report, optionally writes markdown, and can print a GitHub issue curl command.
+Runs the full investigation loop, prints a Rich report, optionally writes markdown, and can suggest a GitHub issue payload.
 
-### 2) Schema Diff
+### Schema Diff
 
 ```bash
 dataghost diff default.public.orders --days 7
@@ -94,15 +90,15 @@ dataghost diff default.public.orders --days 7
 
 Prints table schema changes over the lookback window.
 
-### 3) Lineage
+### Lineage
 
 ```bash
 dataghost lineage default.public.orders --depth 3 --direction both
 ```
 
-Renders upstream/downstream lineage as a Rich tree.
+Renders upstream and downstream lineage as a Rich tree.
 
-### 4) MCP Server
+### MCP Server
 
 ```bash
 dataghost mcp-server
@@ -126,10 +122,10 @@ OLLAMA_MODEL=llama3
 The server exposes:
 
 - `investigate_table({ table_fqn, depth, days })`
-- `get_lineage({ table_fqn, depth })`
+- `get_lineage({ table_fqn, depth, direction })`
 - `get_schema_diff({ table_fqn, days })`
 
-Use stdio transport with the command:
+Use stdio transport with:
 
 ```bash
 dataghost mcp-server
@@ -137,14 +133,18 @@ dataghost mcp-server
 
 ## How It Works
 
-1. Fetch baseline metadata (owners, schema snapshot).
+1. Fetch baseline metadata such as owners and schema snapshot.
 2. Ask Ollama to produce an investigation plan.
-3. Execute OpenMetadata tools in parallel (lineage, quality, schema diff).
+3. Execute OpenMetadata tools in parallel.
 4. Send gathered evidence back to Ollama for incident reasoning.
 5. Render and optionally persist a markdown report.
 
-Tool failures are non-fatal; DataGhost continues with partial data whenever possible.
+Tool failures are non-fatal. DataGhost continues with partial data whenever possible.
+
+## Publishing
+
+This repo is set up for GitHub Actions CI and can be wired for PyPI Trusted Publishing. Once the PyPI package-name issue is resolved, publishing can be automated from GitHub releases.
 
 ## Hackathon Context
 
-Built for the WeMakeDevs × OpenMetadata hackathon as an AI-powered metadata investigator focused on local-first reasoning and practical incident response workflows.
+Built for the WeMakeDevs x OpenMetadata hackathon as an AI-powered metadata investigator focused on local-first reasoning and practical incident response workflows.

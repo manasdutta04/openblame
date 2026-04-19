@@ -10,6 +10,20 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "DataGhost Contributors" }]
+keywords = ["openmetadata", "data-lineage", "ollama", "mcp", "ai-agent", "data-observability"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Database",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: System :: Monitoring",
+]
 dependencies = [
   "httpx>=0.27.0",
   "mcp>=1.0.0",
@@ -23,13 +37,20 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "build>=1.2.0",
   "pytest>=8.3.0",
   "pytest-asyncio>=0.24.0",
   "respx>=0.21.0",
+  "twine>=5.1.0",
 ]
 
 [project.scripts]
 dataghost = "dataghost.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/manasdutta04/dataghost"
+Repository = "https://github.com/manasdutta04/dataghost"
+Issues = "https://github.com/manasdutta04/dataghost/issues"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
