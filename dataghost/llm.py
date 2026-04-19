@@ -26,21 +26,27 @@ class OllamaClient:
 
         if stream:
             collected = ""
-            response = self.client.chat(
-                model=self.model,
-                messages=full_messages,
-                stream=True,
-            )
+            response = self.client.chat(model=self.model, messages=full_messages, stream=True)
             with Live(Text(""), refresh_per_second=20) as live:
                 for chunk in response:
-                    token = str((chunk.get("message") or {}).get("content") or "")
+                    token = ""
+                    try:
+                        token = chunk.message.content or ""
+                    except AttributeError:
+                        try:
+                            token = str((chunk.get("message") or {}).get("content") or "")
+                        except Exception:
+                            pass
                     if token:
                         collected += token
                         live.update(Text(collected))
             return collected
 
         response = self.client.chat(model=self.model, messages=full_messages)
-        return str((response.get("message") or {}).get("content") or "")
+        try:
+            return response.message.content or ""
+        except AttributeError:
+            return str((response.get("message") or {}).get("content") or "")
 
     def plan(self, table_fqn: str, context_summary: str) -> list[str]:
         prompt = f"""You are a data reliability engineer investigating a potential incident.
@@ -53,10 +59,13 @@ No explanation, no markdown, just the JSON array."""
 
         result = self.chat([{"role": "user", "content": prompt}])
         cleaned = result.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.strip("`")
-            if cleaned.lower().startswith("json"):
-                cleaned = cleaned[4:].strip()
+        for prefix in ["```json", "```JSON", "```"]:
+            if cleaned.startswith(prefix):
+                cleaned = cleaned[len(prefix):]
+                break
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
         try:
             steps = json.loads(cleaned)
             if isinstance(steps, list):

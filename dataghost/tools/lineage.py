@@ -9,6 +9,8 @@ import httpx
 def _edge_entity_id(value: Any) -> str:
     if isinstance(value, dict):
         return str(value.get("id") or "")
+    if isinstance(value, str):
+        return value
     return str(value or "")
 
 
