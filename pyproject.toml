@@ -45,15 +45,15 @@ dev = [
 ]
 
 [project.scripts]
-openblame = "dataghost.cli:app"
+openblame = "openblame.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/manasdutta04/dataghost"
-Repository = "https://github.com/manasdutta04/dataghost"
-Issues = "https://github.com/manasdutta04/dataghost/issues"
+Homepage = "https://github.com/manasdutta04/openblame"
+Repository = "https://github.com/manasdutta04/openblame"
+Issues = "https://github.com/manasdutta04/openblame/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["dataghost"]
+packages = ["openblame"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

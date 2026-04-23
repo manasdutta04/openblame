@@ -12,7 +12,7 @@ from tests.conftest import (
     MOCK_TABLE_RESPONSE,
     MOCK_TOKEN,
 )
-from dataghost.tools import lineage, owners, quality, schema_diff
+from openblame.tools import lineage, owners, quality, schema_diff
 
 
 @pytest.mark.asyncio

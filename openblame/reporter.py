@@ -10,7 +10,7 @@ from rich.text import Text
 from rich.tree import Tree
 
 if TYPE_CHECKING:
-    from dataghost.agent import AgentResult
+    from openblame.agent import AgentResult
 
 
 console = Console()

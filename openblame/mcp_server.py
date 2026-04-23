@@ -8,11 +8,11 @@ from mcp import types
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
-from dataghost.agent import DataGhostAgent
-from dataghost.config import get_config
-from dataghost.llm import OllamaClient
-from dataghost.tools import lineage as lineage_tool
-from dataghost.tools import schema_diff as diff_tool
+from openblame.agent import OpenBlameAgent
+from openblame.config import get_config
+from openblame.llm import OllamaClient
+from openblame.tools import lineage as lineage_tool
+from openblame.tools import schema_diff as diff_tool
 
 
 server = Server("openblame")
@@ -83,7 +83,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
 
     if name == "investigate_table":
         llm = OllamaClient(config.ollama_model, config.ollama_host)
-        agent = DataGhostAgent(config, llm)
+        agent = OpenBlameAgent(config, llm)
         result = await agent.investigate(
             fqn,
             depth=int(arguments.get("depth", 3)),

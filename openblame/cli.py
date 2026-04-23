@@ -5,12 +5,12 @@ import asyncio
 import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from dataghost import reporter
-from dataghost.agent import DataGhostAgent
-from dataghost.config import get_config
-from dataghost.llm import OllamaClient
-from dataghost.tools import lineage as lineage_tool
-from dataghost.tools import schema_diff as diff_tool
+from openblame import reporter
+from openblame.agent import OpenBlameAgent
+from openblame.config import get_config
+from openblame.llm import OllamaClient
+from openblame.tools import lineage as lineage_tool
+from openblame.tools import schema_diff as diff_tool
 
 
 app = typer.Typer(help="OpenBlame - AI-powered data pipeline investigator")
@@ -35,7 +35,7 @@ def investigate(
         reporter.console.print("[red]Cannot connect to Ollama.[/red] Run: ollama serve")
         raise typer.Exit(1)
 
-    agent = DataGhostAgent(config, llm)
+    agent = OpenBlameAgent(config, llm)
     with Progress(
         SpinnerColumn(),
         TextColumn("{task.description}"),
@@ -118,7 +118,7 @@ def lineage(
 
 @app.command(name="mcp-server")
 def mcp_server() -> None:
-    from dataghost.mcp_server import run
+    from openblame.mcp_server import run
 
     run()
 

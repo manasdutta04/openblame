@@ -4,9 +4,9 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from dataghost.config import Settings
-from dataghost.llm import OllamaClient
-from dataghost.tools import lineage, owners, quality, schema_diff
+from openblame.config import Settings
+from openblame.llm import OllamaClient
+from openblame.tools import lineage, owners, quality, schema_diff
 
 
 @dataclass
@@ -26,7 +26,7 @@ class AgentResult:
     affected_entities: list[str] = field(default_factory=list)
 
 
-class DataGhostAgent:
+class OpenBlameAgent:
     def __init__(self, config: Settings, llm: OllamaClient):
         self.config = config
         self.llm = llm
@@ -242,3 +242,7 @@ def _build_evidence(result: AgentResult) -> list[str]:
 
     evidence.extend(result.governance_risks[:2])
     return evidence
+
+
+# Backward-compatible alias for earlier imports.
+DataGhostAgent = OpenBlameAgent

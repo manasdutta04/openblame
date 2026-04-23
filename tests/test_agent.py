@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from dataghost.agent import AgentResult, DataGhostAgent
+from openblame.agent import AgentResult, OpenBlameAgent
 
 
 @pytest.fixture
@@ -30,10 +30,10 @@ def mock_config() -> MagicMock:
 @pytest.mark.asyncio
 async def test_investigate_returns_result(mock_config: MagicMock, mock_llm: MagicMock) -> None:
     with (
-        patch("dataghost.agent.owners.get_owners_and_tags", new_callable=AsyncMock) as mock_owners,
-        patch("dataghost.agent.schema_diff.get_schema_diff", new_callable=AsyncMock) as mock_diff,
-        patch("dataghost.agent.lineage.get_lineage", new_callable=AsyncMock) as mock_lineage,
-        patch("dataghost.agent.quality.get_quality_tests", new_callable=AsyncMock) as mock_quality,
+        patch("openblame.agent.owners.get_owners_and_tags", new_callable=AsyncMock) as mock_owners,
+        patch("openblame.agent.schema_diff.get_schema_diff", new_callable=AsyncMock) as mock_diff,
+        patch("openblame.agent.lineage.get_lineage", new_callable=AsyncMock) as mock_lineage,
+        patch("openblame.agent.quality.get_quality_tests", new_callable=AsyncMock) as mock_quality,
     ):
         mock_owners.return_value = {
             "owners": [{"name": "alice"}],
@@ -57,7 +57,7 @@ async def test_investigate_returns_result(mock_config: MagicMock, mock_llm: Magi
             "failures": [],
         }
 
-        agent = DataGhostAgent(mock_config, mock_llm)
+        agent = OpenBlameAgent(mock_config, mock_llm)
         result = await agent.investigate("test.table", depth=2, days=7)
 
         assert isinstance(result, AgentResult)
@@ -70,10 +70,10 @@ async def test_investigate_returns_result(mock_config: MagicMock, mock_llm: Magi
 @pytest.mark.asyncio
 async def test_investigate_handles_tool_failures(mock_config: MagicMock, mock_llm: MagicMock) -> None:
     with (
-        patch("dataghost.agent.owners.get_owners_and_tags", new_callable=AsyncMock) as mock_owners,
-        patch("dataghost.agent.schema_diff.get_schema_diff", new_callable=AsyncMock) as mock_diff,
-        patch("dataghost.agent.lineage.get_lineage", new_callable=AsyncMock) as mock_lineage,
-        patch("dataghost.agent.quality.get_quality_tests", new_callable=AsyncMock) as mock_quality,
+        patch("openblame.agent.owners.get_owners_and_tags", new_callable=AsyncMock) as mock_owners,
+        patch("openblame.agent.schema_diff.get_schema_diff", new_callable=AsyncMock) as mock_diff,
+        patch("openblame.agent.lineage.get_lineage", new_callable=AsyncMock) as mock_lineage,
+        patch("openblame.agent.quality.get_quality_tests", new_callable=AsyncMock) as mock_quality,
     ):
         mock_owners.return_value = {
             "owners": [],
@@ -99,6 +99,6 @@ async def test_investigate_handles_tool_failures(mock_config: MagicMock, mock_ll
             "failures": [],
         }
 
-        agent = DataGhostAgent(mock_config, mock_llm)
+        agent = OpenBlameAgent(mock_config, mock_llm)
         result = await agent.investigate("test.table")
         assert isinstance(result, AgentResult)
