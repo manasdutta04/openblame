@@ -25,14 +25,24 @@ def investigate(
     model: str | None = typer.Option(None, help="Ollama model override"),
 ) -> None:
     config = get_config()
-    if model:
-        config.ollama_model = model
+    
+    if not config.openmetadata_jwt_token:
+        reporter.console.print(
+            "[yellow]Warning:[/yellow] OPENMETADATA_JWT_TOKEN not set.\n"
+            "Set it in .env — get it from OpenMetadata → Settings → Bots → ingestion-bot"
+        )
+        # don't exit — let it try anyway, tools will fail gracefully
 
     reporter.print_header(table_fqn)
 
-    llm = OllamaClient(config.ollama_model, config.ollama_host)
+    model = model or config.get_model()
+    llm = OllamaClient(model, config.ollama_host)
     if not llm.test_connection():
-        reporter.console.print("[red]Cannot connect to Ollama.[/red] Run: ollama serve")
+        reporter.console.print(
+            f"[red]Cannot connect to Ollama at {config.ollama_host}[/red]\n"
+            "Run: [bold]ollama serve[/bold]\n"
+            f"Then ensure a model is available: [bold]ollama list[/bold]"
+        )
         raise typer.Exit(1)
 
     agent = OpenBlameAgent(config, llm)
@@ -76,6 +86,35 @@ def investigate(
                 '  -H "Authorization: Bearer $GITHUB_TOKEN" \\\n'
                 f'  -d \'{{"title": "{title}", "body": "{body[:300]}..."}}\' [/dim]'
             )
+
+
+@app.command(name="list-models")
+def list_models() -> None:
+    """Show available Ollama models on this machine."""
+    config = get_config()
+    llm = OllamaClient(config.get_model(), config.ollama_host)
+    
+    if not llm.test_connection():
+        reporter.console.print("[red]Ollama not running.[/red] Start with: ollama serve")
+        raise typer.Exit(1)
+    
+    models = llm.list_models()
+    if not models:
+        reporter.console.print("[yellow]No models found.[/yellow] Run: ollama pull qwen2.5:7b")
+        return
+    
+    from rich.table import Table
+    table = Table(title="Available Ollama Models", show_header=True, header_style="bold cyan")
+    table.add_column("Model", style="green")
+    table.add_column("Status")
+    
+    detected = config.get_model()
+    for m in models:
+        status = "[bold green]● active[/bold green]" if m == detected else "[dim]○ available[/dim]"
+        table.add_row(m, status)
+    
+    reporter.console.print(table)
+    reporter.console.print(f"\n[dim]Use --model <name> to override. Current default: [cyan]{detected}[/cyan][/dim]")
 
 
 @app.command()

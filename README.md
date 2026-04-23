@@ -59,12 +59,13 @@ For local development:
 pip install -e ".[dev]"
 ```
 
-Run tests with plugin autoload disabled so unrelated third-party pytest plugins from
-`openmetadata-ingestion` do not interfere:
+# Windows (PowerShell)
+.\test.ps1
 
-```bash
+# Linux/Mac
+make test
+# or directly:
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest tests/ -v -p pytest_asyncio.plugin
-```
 
 ## Quick Start
 

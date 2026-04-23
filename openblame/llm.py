@@ -110,3 +110,17 @@ Rules:
             return True
         except Exception:
             return False
+
+    def list_models(self) -> list[str]:
+        """Return names of all available local models."""
+        try:
+            response = self.client.list()
+            models = response.models if hasattr(response, "models") else (response.get("models") or [])
+            names = []
+            for m in models:
+                name = getattr(m, "model", None) or (m.get("model") if isinstance(m, dict) else None)
+                if name:
+                    names.append(str(name))
+            return names
+        except Exception:
+            return []
