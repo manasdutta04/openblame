@@ -244,5 +244,4 @@ def _build_evidence(result: AgentResult) -> list[str]:
     return evidence
 
 
-# Backward-compatible alias for earlier imports.
-DataGhostAgent = OpenBlameAgent
+

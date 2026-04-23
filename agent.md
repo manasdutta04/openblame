@@ -71,7 +71,6 @@ All metadata tools are async `httpx` calls and are gathered with:
 - `OpenBlameAgent`: main orchestrator (`investigate`)
 - `_safe_dict`: converts gather exceptions into structured fallback dicts
 - `_governance_risks`, `_build_anomalies`, `_build_evidence`: summary builders
-- Backward compatibility alias exists: `DataGhostAgent = OpenBlameAgent`
 
 ### `openblame/llm.py`
 
