@@ -167,7 +167,7 @@ Tool failures are non-fatal. OpenBlame continues with partial data whenever poss
 
 ## Publishing
 
-This repo is set up for GitHub Actions CI and can be wired for PyPI Trusted Publishing. Once the PyPI package-name issue is resolved, publishing can be automated from GitHub releases.
+OpenBlame is available on PyPI. This repository is configured for automated publishing via GitHub Actions Trusted Publishing. New versions are published whenever a new release is created or a version tag (e.g., `v0.1.1`) is pushed.
 
 ## Hackathon Context
 
