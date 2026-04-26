@@ -99,7 +99,7 @@ Single presentation layer for Rich tables/panels/trees and report persistence.
 - `OPENMETADATA_HOST` (default `http://localhost:8585`)
 - `OPENMETADATA_JWT_TOKEN` (required)
 - `OLLAMA_HOST` (default `http://localhost:11434`)
-- `OLLAMA_MODEL` (default `llama3`)
+- `OLLAMA_MODEL` (default `qwen2.5:7b`)
 
 Use `get_config()` (cached), not direct `Settings()` construction in app code.
 
@@ -118,7 +118,7 @@ Run with `openblame mcp-server`.
 ## CLI Commands
 
 ```bash
-openblame investigate <table_fqn> --depth 3 --days 7 --output report.md --model llama3
+openblame investigate <table_fqn> --depth 3 --days 7 --output report.md --model qwen2.5:7b
 openblame diff <table_fqn> --days 7
 openblame lineage <table_fqn> --depth 3 --direction both
 openblame mcp-server
