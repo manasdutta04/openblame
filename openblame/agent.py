@@ -144,6 +144,11 @@ class OpenBlameAgent:
         return result
 
 
+# Backward compatibility aliases
+DataGhostResult = AgentResult
+DataGhostAgent = OpenBlameAgent
+
+
 def _safe_dict(
     value: dict[str, Any] | Exception,
     fallback_error: str,
