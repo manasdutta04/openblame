@@ -17,21 +17,46 @@ app = typer.Typer(help="OpenBlame - AI-powered data pipeline investigator")
 
 
 @app.command()
+def configure() -> None:
+    """Interactively configure OpenBlame settings."""
+    from rich.prompt import Prompt
+    
+    reporter.console.print("[bold cyan]OpenBlame Configuration[/bold cyan]\n")
+    
+    host = Prompt.ask("OpenMetadata Host", default="http://localhost:8585")
+    token = Prompt.ask("OpenMetadata JWT Token", password=True)
+    ollama_host = Prompt.ask("Ollama Host", default="http://localhost:11434")
+    ollama_model = Prompt.ask("Ollama Model (optional, will auto-detect if empty)", default="")
+
+    with open(".env", "w") as f:
+        f.write(f"OPENMETADATA_HOST={host}\n")
+        f.write(f"OPENMETADATA_JWT_TOKEN={token}\n")
+        f.write(f"OLLAMA_HOST={ollama_host}\n")
+        f.write(f"OLLAMA_MODEL={ollama_model}\n")
+
+    reporter.console.print("\n[bold green]✓ Configuration saved to .env[/bold green]")
+    reporter.console.print("[dim]You can now run 'openblame investigate'[/dim]")
+
+
+@app.command()
 def investigate(
     table_fqn: str = typer.Argument(..., help="Fully qualified table name"),
     depth: int = typer.Option(3, help="Lineage depth"),
     days: int = typer.Option(7, help="Lookback days"),
     output: str | None = typer.Option(None, help="Save report to this path"),
     model: str | None = typer.Option(None, help="Ollama model override"),
+    host: str | None = typer.Option(None, "--host", help="OpenMetadata host override"),
+    token: str | None = typer.Option(None, "--token", help="OpenMetadata token override"),
 ) -> None:
     config = get_config()
+    if host: config.openmetadata_host = host
+    if token: config.openmetadata_jwt_token = token
     
     if not config.openmetadata_jwt_token:
         reporter.console.print(
             "[yellow]Warning:[/yellow] OPENMETADATA_JWT_TOKEN not set.\n"
-            "Set it in .env — get it from OpenMetadata → Settings → Bots → ingestion-bot"
+            "Run [bold]openblame configure[/bold] or set it in .env"
         )
-        # don't exit — let it try anyway, tools will fail gracefully
 
     reporter.print_header(table_fqn)
 
@@ -114,22 +139,27 @@ def list_models() -> None:
         table.add_row(m, status)
     
     reporter.console.print(table)
-    reporter.console.print(f"\n[dim]Use --model <name> to override. Current default: [cyan]{detected}[/cyan][/dim]")
+    reporter.console.print(f"\n[dim]Run 'openblame configure' to set a default model.[/dim]")
 
 
 @app.command()
 def diff(
     table_fqn: str = typer.Argument(...),
     days: int = typer.Option(7),
+    host: str | None = typer.Option(None, "--host"),
+    token: str | None = typer.Option(None, "--token"),
 ) -> None:
     config = get_config()
+    host = host or config.openmetadata_host
+    token = token or config.openmetadata_jwt_token
+    
     reporter.print_header(table_fqn)
     result = asyncio.run(
         diff_tool.get_schema_diff(
             table_fqn,
             days,
-            config.openmetadata_host,
-            config.openmetadata_jwt_token,
+            host,
+            token,
         )
     )
     reporter.print_schema_diff_table(result)
@@ -140,16 +170,21 @@ def lineage(
     table_fqn: str = typer.Argument(...),
     depth: int = typer.Option(3),
     direction: str = typer.Option("both"),
+    host: str | None = typer.Option(None, "--host"),
+    token: str | None = typer.Option(None, "--token"),
 ) -> None:
     config = get_config()
+    host = host or config.openmetadata_host
+    token = token or config.openmetadata_jwt_token
+
     reporter.print_header(table_fqn)
     result = asyncio.run(
         lineage_tool.get_lineage(
             table_fqn,
             depth,
             direction,
-            config.openmetadata_host,
-            config.openmetadata_jwt_token,
+            host,
+            token,
         )
     )
     reporter.print_lineage_tree(result)
