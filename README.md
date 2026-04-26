@@ -139,7 +139,3 @@ OpenBlame is released under the **MIT License**. See [LICENSE](LICENSE) for deta
 ## Contributing
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 Check out our [Code of Conduct](CODE_OF_CONDUCT.md) and [Security Policy](SECURITY.md).
-
----
-
-*Note: For users migrating from DataGhost, we provide `DataGhostAgent` and `DataGhostResult` aliases in `openblame.agent` for backward compatibility.*

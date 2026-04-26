@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openblame"
-version = "0.1.7"
+version = "0.1.8"
 description = "Local-first AI investigation CLI for OpenMetadata data pipelines."
 readme = "README.md"
 requires-python = ">=3.11"
