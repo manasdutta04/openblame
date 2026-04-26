@@ -2,7 +2,7 @@
 
 First off, thank you for considering contributing to OpenBlame! It's people like you who make the open-source community such an amazing place to learn, inspire, and create.
 
-## 🚀 How Can I Contribute?
+## How Can I Contribute?
 
 ### Reporting Bugs
 If you find a bug, please open an issue on GitHub. Include:
@@ -32,7 +32,7 @@ We love new ideas! If you have a feature request, please open an issue to discus
 5. **Format your code**: We use `ruff` for formatting and linting.
 6. **Issue a Pull Request**: Provide a clear description of your changes.
 
-## 🛠 Development Workflow
+## Development Workflow
 
 - **Backend**: Python 3.11+
 - **CLI**: Typer + Rich
@@ -46,5 +46,5 @@ We love new ideas! If you have a feature request, please open an issue to discus
 - Keep components focused and modular.
 - Ensure any new metadata tool fails gracefully (returns an error key instead of raising).
 
-## 📝 License
+## License
 By contributing to OpenBlame, you agree that your contributions will be licensed under the project's MIT License.

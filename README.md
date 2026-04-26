@@ -17,18 +17,18 @@ The reasoning layer runs entirely on your local **Ollama** models, ensuring your
 
 ---
 
-## ✨ Features
+## Features
 
-- 🕵️ **Autonomous Investigation**: ReAct-style agent loop that plans and executes metadata research.
-- 🌳 **Lineage & Blast Radius**: Automatic upstream/downstream analysis to find affected entities.
-- 📉 **Schema Drift**: Instant diffing of column changes, type updates, and renames.
-- 🛡️ **Governance Aware**: Surfaces missing owners, tiers, and domain gaps as operational risks.
-- 🦙 **Local-First AI**: Powered by Ollama (qwen2.5, llama3, etc.). No external API keys needed for reasoning.
-- 🔌 **MCP Ready**: Built-in Model Context Protocol server to integrate with AI IDEs like Cursor and Claude Desktop.
+- **Autonomous Investigation**: ReAct-style agent loop that plans and executes metadata research.
+- **Lineage & Blast Radius**: Automatic upstream/downstream analysis to find affected entities.
+- **Schema Drift**: Instant diffing of column changes, type updates, and renames.
+- **Governance Aware**: Surfaces missing owners, tiers, and domain gaps as operational risks.
+- **Local-First AI**: Powered by Ollama (qwen2.5, llama3, etc.). No external API keys needed for reasoning.
+- **MCP Ready**: Built-in Model Context Protocol server to integrate with AI IDEs like Cursor and Claude Desktop.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Install
 ```bash
@@ -49,7 +49,7 @@ openblame investigate "ecommerce.analytics.customer_churn"
 
 ---
 
-## 🛠 CLI Commands
+## CLI Commands
 
 ### `investigate`
 The core command. Runs the full AI reasoning loop.
@@ -97,7 +97,7 @@ openblame mcp-server
 
 ---
 
-## 🔌 MCP Integration (Cursor / Claude)
+## MCP Integration (Cursor / Claude)
 
 Add OpenBlame to your `claude_desktop_config.json`:
 
@@ -114,7 +114,7 @@ Add OpenBlame to your `claude_desktop_config.json`:
 
 ---
 
-## 🏗 Development
+## Development
 
 ```bash
 # Clone and install
@@ -131,11 +131,11 @@ make test
 
 ---
 
-## 📄 License
+## License
 OpenBlame is released under the **MIT License**. See [LICENSE](LICENSE) for details.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 Check out our [Code of Conduct](CODE_OF_CONDUCT.md) and [Security Policy](SECURITY.md).

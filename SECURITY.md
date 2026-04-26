@@ -3,10 +3,10 @@
 ## Supported Versions
 We currently support and provide security updates for the following versions of OpenBlame:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| v0.1.x  | :white_check_mark: |
-| < v0.1  | :x:                |
+| Version | Supported |
+| ------- | --------- |
+| v0.1.x  | Yes       |
+| < v0.1  | No        |
 
 ## Reporting a Vulnerability
 We take the security of OpenBlame seriously. If you believe you have found a security vulnerability, please do NOT open a public issue. Instead, please report it via the following steps:
