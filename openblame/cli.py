@@ -16,17 +16,43 @@ from openblame.tools import schema_diff as diff_tool
 app = typer.Typer(help="OpenBlame - AI-powered data pipeline investigator")
 
 
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context) -> None:
+    """OpenBlame - AI-powered data pipeline investigator"""
+    if ctx.invoked_subcommand is None:
+        reporter.print_branding()
+        reporter.console.print(ctx.get_help())
+
+
 @app.command()
 def configure() -> None:
     """Interactively configure OpenBlame settings."""
-    from rich.prompt import Prompt
+    from rich.prompt import Prompt, Confirm
+    from rich.table import Table
     
-    reporter.console.print("[bold cyan]OpenBlame Configuration[/bold cyan]\n")
+    reporter.print_branding()
+    reporter.console.print("[bold cyan]Setup & Configuration[/bold cyan]\n")
     
-    host = Prompt.ask("OpenMetadata Host", default="http://localhost:8585")
-    token = Prompt.ask("OpenMetadata JWT Token", password=True)
-    ollama_host = Prompt.ask("Ollama Host", default="http://localhost:11434")
-    ollama_model = Prompt.ask("Ollama Model (optional, will auto-detect if empty)", default="")
+    config = get_config()
+    
+    host = Prompt.ask("OpenMetadata Host", default=config.openmetadata_host)
+    token = Prompt.ask("OpenMetadata JWT Token", password=True, default=config.openmetadata_jwt_token)
+    ollama_host = Prompt.ask("Ollama Host", default=config.ollama_host)
+    
+    # Model Selection
+    ollama_model = config.ollama_model
+    try:
+        llm = OllamaClient(config.get_model(), ollama_host)
+        models = llm.list_models()
+        if models:
+            from rich.prompt import Choice
+            reporter.console.print("\n[bold]Detected Ollama Models:[/bold]")
+            selected = Choice(models)
+            ollama_model = Prompt.ask("Select Default Model", choices=models, default=models[0])
+        else:
+            ollama_model = Prompt.ask("Ollama Model (manual)", default="qwen2.5:7b")
+    except Exception:
+        ollama_model = Prompt.ask("Ollama Model (manual entry)", default="qwen2.5:7b")
 
     with open(".env", "w") as f:
         f.write(f"OPENMETADATA_HOST={host}\n")
@@ -34,8 +60,17 @@ def configure() -> None:
         f.write(f"OLLAMA_HOST={ollama_host}\n")
         f.write(f"OLLAMA_MODEL={ollama_model}\n")
 
+    # Summary Table
+    summary = Table(title="\nConfiguration Summary", show_header=False, border_style="green")
+    summary.add_row("OpenMetadata Host", host)
+    masked_token = (token[:4] + "*" * (len(token) - 4)) if len(token) > 4 else "***"
+    summary.add_row("JWT Token", f"[dim]{masked_token}[/dim]")
+    summary.add_row("Ollama Host", ollama_host)
+    summary.add_row("Active Model", f"[bold green]{ollama_model}[/bold green]")
+    
+    reporter.console.print(summary)
     reporter.console.print("\n[bold green]✓ Configuration saved to .env[/bold green]")
-    reporter.console.print("[dim]You can now run 'openblame investigate'[/dim]")
+    reporter.console.print("[dim]You are ready to investigate! Run: [bold]openblame investigate --help[/bold][/dim]")
 
 
 @app.command()

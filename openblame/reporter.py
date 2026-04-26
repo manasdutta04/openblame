@@ -23,14 +23,21 @@ SEVERITY_COLORS: dict[str, str] = {
     "UNKNOWN": "dim",
 }
 
-LOGO = """[bold cyan]
-  ____                  ____  _                       
- / __ \\____  ___  ____ / __ )(_)___ _____ ___  ___    
-/ / / / __ \\/ _ \\/ __ `/ __  / / __ `/ __ `__ \\/ _ \\   
-/ /_/ / /_/ /  __/ /_/ / /_/ / / /_/ / / / / / /  __/  
-\\____/ .___/\\___/\\__,_/_____/_/\\__,_/_/ /_/ /_/\\___/   
-    /_/                                                
-[/bold cyan][dim]AI-powered metadata incident investigator[/dim]"""
+LOGO = r"""[bold cyan]
+                         _     _                      
+                        | |   | |                     
+   ___  _ __   ___ _ __ | |__ | | __ _ _ __ ___   ___ 
+  / _ \| '_ \ / _ \ '_ \| '_ \| |/ _` | '_ ` _ \ / _ \
+ | (_) | |_) |  __/ | | | |_) | | (_| | | | | | |  __/
+  \___/| .__/ \___|_| |_|_.__/|_|\__,_|_| |_| |_|\___|
+       | |                                            
+       |_|                                            
+[/bold cyan]"""
+
+
+def print_branding() -> None:
+    console.print(LOGO)
+    console.print("[dim italic]AI-powered metadata incident investigator[/dim italic]\n")
 
 
 def print_header(fqn: str) -> None:
